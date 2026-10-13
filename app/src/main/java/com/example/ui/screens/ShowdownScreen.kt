@@ -224,7 +224,9 @@ fun ShowdownScreen(
                         icon = Icons.Default.Chat,
                         color = CrimePoliceBlue,
                         onClick = { onAction(ShowdownAction.BAZAR) },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("action_bazar")
                     )
                     ShowdownActionButton(
                         text = "В челюсть!",
@@ -232,7 +234,9 @@ fun ShowdownScreen(
                         icon = Icons.Default.SportsMartialArts,
                         color = CrimeCrimsonLight,
                         onClick = { onAction(ShowdownAction.PUNCH) },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("action_punch")
                     )
                 }
                 Row(
@@ -245,7 +249,9 @@ fun ShowdownScreen(
                         icon = Icons.Default.FlashOn,
                         color = CrimeGold,
                         onClick = { onAction(ShowdownAction.SHOOT) },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("action_shoot")
                     )
                     ShowdownActionButton(
                         text = "Братва, в бой!",
@@ -253,14 +259,17 @@ fun ShowdownScreen(
                         icon = Icons.Default.Groups,
                         color = CrimeSteel,
                         onClick = { onAction(ShowdownAction.CALL_CREW) },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("action_crew")
                     )
                 }
                 OutlinedButton(
                     onClick = { onAction(ShowdownAction.FLEE) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(38.dp),
+                        .height(38.dp)
+                        .testTag("action_flee"),
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = CrimeTextMuted)
                 ) {

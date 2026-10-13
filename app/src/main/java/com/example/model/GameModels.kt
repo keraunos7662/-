@@ -91,15 +91,16 @@ data class ShowdownState(
     val rivalName: String,
     val rivalTitle: String,
     val rivalMaxHp: Int,
-    var rivalCurrentHp: Int,
+    val rivalCurrentHp: Int,
     val rivalAttack: Int,
     val playerMaxHp: Int,
-    var playerCurrentHp: Int,
+    val playerCurrentHp: Int,
     val rewardMoney: Long,
     val rewardRespect: Int,
-    val battleLog: MutableList<String> = mutableListOf(),
-    var isFinished: Boolean = false,
-    var isPlayerWon: Boolean = false
+    val battleLog: List<String> = emptyList(),
+    val isFinished: Boolean = false,
+    val isPlayerWon: Boolean = false,
+    val districtId: String? = null
 )
 
 data class PrisonRiddle(

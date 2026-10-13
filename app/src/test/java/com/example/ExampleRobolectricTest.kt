@@ -1,14 +1,18 @@
 package com.example
 
+import android.app.Application
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.example.data.local.AppDatabase
 import com.example.data.local.CharacterEntity
 import com.example.model.ReputationRank
+import com.example.viewmodel.GameViewModel
+import com.example.viewmodel.ShowdownAction
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -71,5 +75,33 @@ class ExampleRobolectricTest {
     assertEquals(100, updatedHero?.health)
 
     db.close()
+  }
+
+  @Test
+  fun `test showdown combat action and reactivity`() {
+    val application = ApplicationProvider.getApplicationContext<Application>()
+    val vm = GameViewModel(application)
+
+    vm.startShowdown(
+      rivalName = "Тестовый враг",
+      rivalTitle = "Бык",
+      maxHp = 50,
+      attack = 5,
+      rewardMoney = 10000L,
+      rewardRespect = 20
+    )
+
+    val initialShowdown = vm.uiState.value.activeShowdown
+    assertNotNull(initialShowdown)
+    assertEquals(50, initialShowdown?.rivalCurrentHp)
+    assertEquals(1, initialShowdown?.battleLog?.size)
+
+    // Perform Punch action
+    vm.performShowdownAction(ShowdownAction.PUNCH)
+
+    val updatedShowdown = vm.uiState.value.activeShowdown
+    assertNotNull(updatedShowdown)
+    assertTrue((updatedShowdown?.rivalCurrentHp ?: 50) < 50)
+    assertTrue((updatedShowdown?.battleLog?.size ?: 0) > 1)
   }
 }

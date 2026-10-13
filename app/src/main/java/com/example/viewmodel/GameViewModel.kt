@@ -296,8 +296,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // CONFRONTATION / SHOWDOWN
-    fun startShowdown(rivalName: String, rivalTitle: String, maxHp: Int, attack: Int, rewardMoney: Long, rewardRespect: Int) {
-        val playerMaxHp = _uiState.value.health
+    fun startShowdown(
+        rivalName: String,
+        rivalTitle: String,
+        maxHp: Int,
+        attack: Int,
+        rewardMoney: Long,
+        rewardRespect: Int,
+        districtId: String? = null
+    ) {
+        val playerMaxHp = _uiState.value.health.coerceAtLeast(30)
         val showdown = ShowdownState(
             rivalName = rivalName,
             rivalTitle = rivalTitle,
@@ -308,7 +316,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             playerCurrentHp = playerMaxHp,
             rewardMoney = rewardMoney,
             rewardRespect = rewardRespect,
-            battleLog = mutableListOf("Стрелка началась! Перед тобой $rivalName ($rivalTitle). Обстановка накалена до предела.")
+            battleLog = listOf("Стрелка началась! Перед тобой $rivalName ($rivalTitle). Обстановка накалена до предела."),
+            isFinished = false,
+            isPlayerWon = false,
+            districtId = districtId
         )
         _uiState.update { it.copy(activeShowdown = showdown) }
     }
@@ -327,7 +338,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             maxHp = 60 + difficultyMultiplier * 25,
             attack = 12 + difficultyMultiplier * 6,
             rewardMoney = district.dailyTribute * 4,
-            rewardRespect = 40 + difficultyMultiplier * 20
+            rewardRespect = 40 + difficultyMultiplier * 20,
+            districtId = district.id
         )
     }
 
@@ -338,7 +350,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             maxHp = 90,
             attack = 20,
             rewardMoney = 15000,
-            rewardRespect = 50
+            rewardRespect = 50,
+            districtId = null
         )
     }
 
@@ -351,28 +364,29 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val equippedDefense = state.assets.filter { it.isEquipped }.sumOf { it.defenseBonus }
         val crewCombat = state.crew.filter { it.isHired }.sumOf { it.combatBonus }
 
+        val newLog = currentShowdown.battleLog.toMutableList()
+        var rivalHp = currentShowdown.rivalCurrentHp
+        var playerHp = currentShowdown.playerCurrentHp
+
         when (action) {
             ShowdownAction.BAZAR -> {
                 // Speech check based on Influence & Respect
-                val speechPower = (state.influence * 2 + state.respect / 10).coerceAtLeast(15)
+                val speechPower = (state.influence * 2 + state.respect / 10).coerceAtLeast(20)
                 val success = Random.nextInt(100) < speechPower
                 if (success) {
                     val damage = Random.nextInt(25, 45)
-                    currentShowdown.rivalCurrentHp -= damage
-                    currentShowdown.battleLog.add(
-                        "Ты раскидал всё по понятиям! Противник растерялся и сдал назад (-$damage морали)."
-                    )
+                    rivalHp = (rivalHp - damage).coerceAtLeast(0)
+                    newLog.add("Ты раскидал всё по понятиям! Противник растерялся и сдал назад (-$damage морали).")
                     repository.playSound(SoundType.CLICK)
                 } else {
-                    currentShowdown.battleLog.add(
-                        "Оппоненты не стали слушать: «Фильтруй хрюкало, фраер!» Базар сорвался."
-                    )
+                    newLog.add("Оппоненты не стали слушать: «Фильтруй хрюкало, фраер!» Базар сорвался.")
+                    repository.playSound(SoundType.CLICK)
                 }
             }
             ShowdownAction.PUNCH -> {
                 val damage = (15 + state.strength / 3 + Random.nextInt(5, 12))
-                currentShowdown.rivalCurrentHp -= damage
-                currentShowdown.battleLog.add("Ты пробил сокрушительную двойку в челюсть! (-$damage HP)")
+                rivalHp = (rivalHp - damage).coerceAtLeast(0)
+                newLog.add("Ты пробил сокрушительную двойку в челюсть! (-$damage HP оппонента).")
                 repository.playSound(SoundType.PUNCH)
             }
             ShowdownAction.SHOOT -> {
@@ -382,47 +396,50 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 } else {
                     (20 + equippedAttack + Random.nextInt(5, 15))
                 }
-                currentShowdown.rivalCurrentHp -= damage
+                rivalHp = (rivalHp - damage).coerceAtLeast(0)
                 if (hasFirearm) {
-                    currentShowdown.battleLog.add("Выстрел из волыны! Грохот выстрела оглушил район (-$damage HP оппонента).")
+                    newLog.add("Выстрел из волыны! Грохот выстрела оглушил район (-$damage HP оппонента).")
                     repository.playSound(SoundType.SHOT)
                 } else {
-                    currentShowdown.battleLog.add("Удар тяжелым оружием! (-$damage HP)")
+                    newLog.add("Удар тяжелым оружием! (-$damage HP оппонента).")
                     repository.playSound(SoundType.PUNCH)
                 }
             }
             ShowdownAction.CALL_CREW -> {
                 if (crewCombat > 0) {
                     val damage = crewCombat + Random.nextInt(10, 25)
-                    currentShowdown.rivalCurrentHp -= damage
-                    currentShowdown.battleLog.add("Твоя братва навалилась толпой с арматурой! (-$damage HP врагов).")
+                    rivalHp = (rivalHp - damage).coerceAtLeast(0)
+                    newLog.add("Твоя братва навалилась толпой с арматурой! (-$damage HP оппонента).")
                     repository.playSound(SoundType.PUNCH)
                 } else {
-                    currentShowdown.battleLog.add("У тебя нет нанятых бойцов в бригаде! Пришлось отбиваться в одиночку.")
+                    newLog.add("У тебя нет нанятых бойцов в бригаде! Пришлось отбиваться в одиночку.")
+                    repository.playSound(SoundType.CLICK)
                 }
             }
             ShowdownAction.FLEE -> {
                 val hasCar = state.assets.any { it.isEquipped && it.category == AssetCategory.VEHICLE }
                 val fleeChance = if (hasCar) 75 else 40
                 if (Random.nextInt(100) < fleeChance) {
-                    currentShowdown.isFinished = true
-                    currentShowdown.isPlayerWon = false
-                    currentShowdown.battleLog.add("Ты дал по газам и оторвался от преследования!")
-                    _uiState.update { it.copy(alertMessage = "Ты успешно оторвался от противников на стрелке.") }
+                    newLog.add("Ты дал по газам и оторвался от преследования!")
+                    val finishedShowdown = currentShowdown.copy(
+                        battleLog = newLog,
+                        isFinished = true,
+                        isPlayerWon = false
+                    )
+                    _uiState.update { it.copy(activeShowdown = finishedShowdown, alertMessage = "Ты успешно оторвался от противников на стрелке.") }
                     persistState()
                     return
                 } else {
-                    currentShowdown.battleLog.add("Сбежать не удалось! Тебя зажали в угол.")
+                    newLog.add("Сбежать не удалось! Тебя зажали в угол.")
+                    repository.playSound(SoundType.PUNCH)
                 }
             }
         }
 
         // Check if rival is defeated
-        if (currentShowdown.rivalCurrentHp <= 0) {
-            currentShowdown.rivalCurrentHp = 0
-            currentShowdown.isFinished = true
-            currentShowdown.isPlayerWon = true
-            currentShowdown.battleLog.add("ПОБЕДА! Враг повержен и молит о пощаде!")
+        if (rivalHp <= 0) {
+            rivalHp = 0
+            newLog.add("ПОБЕДА! Враг повержен и молит о пощаде!")
             repository.playSound(SoundType.VICTORY)
 
             // Grant rewards
@@ -432,17 +449,40 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 showdownsWon = state.stats.showdownsWon + 1,
                 totalEarned = state.stats.totalEarned + currentShowdown.rewardMoney
             )
+
+            // If this was a district contest, increase control by +25%!
+            val updatedDistricts = if (currentShowdown.districtId != null) {
+                state.districts.map { d ->
+                    if (d.id == currentShowdown.districtId) {
+                        d.copy(controlPercent = (d.controlPercent + 25).coerceAtMost(100))
+                    } else d
+                }
+            } else {
+                state.districts
+            }
+
             val log = GameHistoryEntry(
                 state.day,
                 "Победа на стрелке против «${currentShowdown.rivalName}»! Трофеи: +${formatMoney(currentShowdown.rewardMoney)} ₽, уважение +${currentShowdown.rewardRespect}.",
                 true
             )
 
+            val finishedShowdown = currentShowdown.copy(
+                rivalCurrentHp = 0,
+                playerCurrentHp = playerHp,
+                battleLog = newLog,
+                isFinished = true,
+                isPlayerWon = true
+            )
+
             _uiState.update {
                 it.copy(
+                    activeShowdown = finishedShowdown,
+                    health = playerHp,
                     money = newMoney,
                     respect = newRespect,
                     rank = ReputationRank.fromRespect(newRespect),
+                    districts = updatedDistricts,
                     stats = newStats,
                     history = it.history + log
                 )
@@ -452,23 +492,31 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         // Rival attacks back
-        val rawAttack = currentShowdown.rivalAttack + Random.nextInt(0, 10)
+        val rawAttack = currentShowdown.rivalAttack + Random.nextInt(0, 8)
         val mitigation = (equippedDefense / 4).coerceAtMost(rawAttack - 3)
         val actualDamage = (rawAttack - mitigation).coerceAtLeast(3)
-        currentShowdown.playerCurrentHp -= actualDamage
-        currentShowdown.battleLog.add("${currentShowdown.rivalName} наносит ответный удар! (-$actualDamage HP).")
+        playerHp = (playerHp - actualDamage).coerceAtLeast(0)
+        newLog.add("${currentShowdown.rivalName} наносит ответный удар! (-$actualDamage HP).")
 
-        if (currentShowdown.playerCurrentHp <= 0) {
-            currentShowdown.playerCurrentHp = 0
-            currentShowdown.isFinished = true
-            currentShowdown.isPlayerWon = false
-            currentShowdown.battleLog.add("Поражение! Ты потерял сознание и очнулся в больнице...")
+        if (playerHp <= 0) {
+            playerHp = 0
+            newLog.add("Поражение! Ты потерял сознание и очнулся в больнице...")
+            repository.playSound(SoundType.PUNCH)
 
             val hospitalBill = (state.money / 4).coerceAtLeast(1000)
             val newMoney = (state.money - hospitalBill).coerceAtLeast(0)
 
+            val finishedShowdown = currentShowdown.copy(
+                rivalCurrentHp = rivalHp,
+                playerCurrentHp = 0,
+                battleLog = newLog,
+                isFinished = true,
+                isPlayerWon = false
+            )
+
             _uiState.update {
                 it.copy(
+                    activeShowdown = finishedShowdown,
                     health = 35,
                     money = newMoney,
                     history = it.history + GameHistoryEntry(
@@ -479,8 +527,20 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
         } else {
-            // Update current HP in state
-            _uiState.update { it.copy(health = currentShowdown.playerCurrentHp) }
+            val updatedShowdown = currentShowdown.copy(
+                rivalCurrentHp = rivalHp,
+                playerCurrentHp = playerHp,
+                battleLog = newLog,
+                isFinished = false,
+                isPlayerWon = false
+            )
+
+            _uiState.update {
+                it.copy(
+                    activeShowdown = updatedShowdown,
+                    health = playerHp
+                )
+            }
         }
 
         persistState()
@@ -693,9 +753,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     // DISTRICTS & TERRITORY
     fun expandDistrictControl(district: District) {
         val state = _uiState.value
-        val expansionCost = (district.dailyTribute * 1.5).toLong()
-        if (state.money < expansionCost) {
-            _uiState.update { it.copy(alertMessage = "На расширение влияния нужно ${formatMoney(expansionCost)} ₽ на братву.") }
+        if (state.health < 20) {
+            _uiState.update { it.copy(alertMessage = "Ты еле дышишь! Подлечись в больничке перед стрелкой.") }
+            return
+        }
+        if (district.controlPercent >= 100) {
+            _uiState.update { it.copy(alertMessage = "Район «${district.name}» уже полностью под твоим контролем (100%)!") }
             return
         }
 
