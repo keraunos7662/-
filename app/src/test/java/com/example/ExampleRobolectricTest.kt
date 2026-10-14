@@ -32,12 +32,12 @@ class ExampleRobolectricTest {
   @Test
   fun `test reputation rank transitions`() {
     assertEquals(ReputationRank.SHNYR, ReputationRank.fromRespect(0))
-    assertEquals(ReputationRank.PATSAN, ReputationRank.fromRespect(50))
-    assertEquals(ReputationRank.BYK, ReputationRank.fromRespect(150))
-    assertEquals(ReputationRank.BRIGADIR, ReputationRank.fromRespect(350))
-    assertEquals(ReputationRank.SMOTRYASHIY, ReputationRank.fromRespect(750))
-    assertEquals(ReputationRank.AVTORITET, ReputationRank.fromRespect(1300))
-    assertEquals(ReputationRank.VOR_V_ZAKONE, ReputationRank.fromRespect(2000))
+    assertEquals(ReputationRank.PATSAN, ReputationRank.fromRespect(150))
+    assertEquals(ReputationRank.BYK, ReputationRank.fromRespect(450))
+    assertEquals(ReputationRank.BRIGADIR, ReputationRank.fromRespect(1100))
+    assertEquals(ReputationRank.SMOTRYASHIY, ReputationRank.fromRespect(2500))
+    assertEquals(ReputationRank.AVTORITET, ReputationRank.fromRespect(5200))
+    assertEquals(ReputationRank.VOR_V_ZAKONE, ReputationRank.fromRespect(10000))
   }
 
   @Test

@@ -30,6 +30,32 @@ data class CharacterEntity(
     @ColumnInfo(name = "health")
     val health: Int = 100, // Здоровье
 
+    // Суточная система и общак
+    @ColumnInfo(name = "energy")
+    val energy: Int = 100, // Бодрость / Энергия на день (0-100)
+
+    @ColumnInfo(name = "safe_money")
+    val safeMoney: Long = 0L, // Деньги в общаке
+
+    // Очки навыков и прокачка понятий
+    @ColumnInfo(name = "skill_points")
+    val skillPoints: Int = 1,
+
+    @ColumnInfo(name = "skill_boxing")
+    val skillBoxing: Int = 0,
+
+    @ColumnInfo(name = "skill_shooting")
+    val skillShooting: Int = 0,
+
+    @ColumnInfo(name = "skill_stealth")
+    val skillStealth: Int = 0,
+
+    @ColumnInfo(name = "skill_luck")
+    val skillLuck: Int = 0,
+
+    @ColumnInfo(name = "skill_toughness")
+    val skillToughness: Int = 0,
+
     // Сопутствующий криминальный статус и прогресс
     @ColumnInfo(name = "police_heat")
     val policeHeat: Int = 5,
@@ -65,5 +91,8 @@ data class CharacterEntity(
     val timesArrested: Int = 0,
 
     @ColumnInfo(name = "days_survived")
-    val daysSurvived: Int = 1
+    val daysSurvived: Int = 1,
+
+    @ColumnInfo(name = "casino_wins")
+    val casinoWins: Int = 0
 )

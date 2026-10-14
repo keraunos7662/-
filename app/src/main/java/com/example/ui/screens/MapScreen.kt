@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.District
@@ -34,8 +35,8 @@ fun MapScreen(
         modifier = modifier
             .fillMaxSize()
             .testTag("map_screen"),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        contentPadding = PaddingValues(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
             Column {
@@ -46,7 +47,7 @@ fun MapScreen(
                     color = CrimeTextPrimary
                 )
                 Text(
-                    text = "Отжимай районы у конкурирующих группировок, собирай дань и держи весь город под своим контролем.",
+                    text = "Отжимай районы у конкурирующих группировок на стрелках, собирай дань и держи весь город под своим контролем.",
                     fontSize = 12.sp,
                     color = CrimeTextSecondary
                 )
@@ -64,18 +65,19 @@ fun MapScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(14.dp),
+                        .padding(12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(text = "Общая дань с города:", fontSize = 12.sp, color = CrimeTextMuted)
-                        Text(text = "+${formatNum(totalTribute)} ₽/сутки", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = CrimeCashGreen)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(text = "Общая дань с районов:", fontSize = 11.sp, color = CrimeTextMuted)
+                        Text(text = "+${formatNum(totalTribute)} ₽/сутки", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = CrimeCashGreen)
                     }
                     Surface(shape = RoundedCornerShape(6.dp), color = CrimeSurfaceHighlight) {
                         Text(
-                            text = "5 районов города",
+                            text = "⚡ 25% энергии за стрелку",
                             fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
                             color = CrimeGoldLight,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
@@ -88,6 +90,7 @@ fun MapScreen(
         items(uiState.districts) { district ->
             DistrictCard(
                 district = district,
+                playerEnergy = uiState.energy,
                 onAttackRivals = { onExpandDistrict(district) }
             )
         }
@@ -97,15 +100,18 @@ fun MapScreen(
 @Composable
 private fun DistrictCard(
     district: District,
+    playerEnergy: Int,
     onAttackRivals: () -> Unit
 ) {
     val progress = (district.controlPercent / 100f).coerceIn(0f, 1f)
+    val isMaxed = district.controlPercent >= 100
+    val canFight = playerEnergy >= 25
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("district_card_${district.id}"),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = CrimeSurfaceCard),
         border = CardDefaults.outlinedCardBorder().copy(
             brush = if (district.controlPercent >= 50) Brush.horizontalGradient(listOf(CrimeGoldDark, CrimeBorder))
@@ -115,7 +121,7 @@ private fun DistrictCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp)
+                .padding(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -124,10 +130,14 @@ private fun DistrictCard(
             ) {
                 Text(
                     text = district.name,
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = CrimeTextPrimary
+                    color = CrimeTextPrimary,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
+                Spacer(modifier = Modifier.width(6.dp))
                 Surface(
                     shape = RoundedCornerShape(4.dp),
                     color = CrimeCrimsonDark.copy(alpha = 0.4f)
@@ -137,6 +147,8 @@ private fun DistrictCard(
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = CrimeCrimsonLight,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     )
                 }
@@ -144,13 +156,13 @@ private fun DistrictCard(
 
             Text(
                 text = district.description,
-                fontSize = 12.sp,
+                fontSize = 11.sp,
                 color = CrimeTextSecondary,
-                lineHeight = 16.sp,
+                lineHeight = 15.sp,
                 modifier = Modifier.padding(vertical = 4.dp)
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Control progress bar
             Row(
@@ -158,20 +170,20 @@ private fun DistrictCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "Контроль твоего авторитета:", fontSize = 11.sp, color = CrimeTextMuted)
+                Text(text = "Контроль твоего авторитета:", fontSize = 10.sp, color = CrimeTextMuted)
                 Text(
                     text = "${district.controlPercent}%",
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (district.controlPercent >= 50) CrimeGoldLight else CrimeTextSecondary
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(3.dp))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(8.dp)
+                    .height(7.dp)
                     .clip(RoundedCornerShape(4.dp))
                     .background(CrimeSurfaceDark)
             ) {
@@ -185,30 +197,52 @@ private fun DistrictCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(text = "Макс. дань района:", fontSize = 10.sp, color = CrimeTextMuted)
-                    Text(text = "${formatNum(district.dailyTribute)} ₽/сутки", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = CrimeCashGreen)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = "Макс. дань района:", fontSize = 9.sp, color = CrimeTextMuted)
+                    Text(text = "${formatNum(district.dailyTribute)} ₽/сутки", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CrimeCashGreen)
                 }
 
-                Button(
-                    onClick = onAttackRivals,
-                    modifier = Modifier
-                        .height(38.dp)
-                        .testTag("attack_district_${district.id}"),
-                    colors = ButtonDefaults.buttonColors(containerColor = CrimeCrimson),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-                ) {
-                    Icon(Icons.Default.SportsMartialArts, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Забить стрелку!", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(8.dp))
+
+                if (isMaxed) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = CrimeCashGreen.copy(alpha = 0.2f)
+                    ) {
+                        Text(
+                            text = "✓ Район взят (100%)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CrimeCashGreen,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = onAttackRivals,
+                        enabled = canFight,
+                        modifier = Modifier
+                            .height(34.dp)
+                            .testTag("attack_district_${district.id}"),
+                        colors = ButtonDefaults.buttonColors(containerColor = CrimeCrimson),
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
+                    ) {
+                        Icon(Icons.Default.SportsMartialArts, contentDescription = null, modifier = Modifier.size(13.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (canFight) "На стрелку!" else "Нет сил",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }

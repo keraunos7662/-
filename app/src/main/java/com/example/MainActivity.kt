@@ -15,13 +15,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.components.GameStatusBar
-import com.example.ui.dialogs.NewGameDialog
-import com.example.ui.dialogs.RandomEventDialog
+import com.example.ui.dialogs.*
 import com.example.ui.screens.*
 import com.example.ui.theme.*
 import com.example.viewmodel.GameViewModel
@@ -111,6 +111,7 @@ fun CriminalRussiaApp(
                         val isSelected = currentTab == tab
                         NavigationBarItem(
                             selected = isSelected,
+                            alwaysShowLabel = true,
                             onClick = { currentTab = tab },
                             icon = {
                                 Icon(
@@ -122,7 +123,9 @@ fun CriminalRussiaApp(
                             label = {
                                 Text(
                                     text = tab.title,
-                                    fontSize = 11.sp,
+                                    fontSize = 10.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                     color = if (isSelected) CrimeGoldLight else CrimeTextMuted
                                 )
                             },
@@ -181,6 +184,12 @@ fun CriminalRussiaApp(
                                     onNavigateToAssets = { currentTab = NavigationTab.ASSETS },
                                     onNavigateToCrew = { currentTab = NavigationTab.CREW },
                                     onNavigateToDistricts = { currentTab = NavigationTab.DISTRICTS },
+                                    onOpenBossArena = { viewModel.openBossArena() },
+                                    onOpenBossChat = { viewModel.openBossChat() },
+                                    onOpenCasino = { viewModel.openOchkoDialog() },
+                                    onOpenGym = { viewModel.openGymDialog() },
+                                    onOpenSafe = { viewModel.openSafeDialog() },
+                                    onOpenSkills = { viewModel.openSkillsDialog() },
                                     onNewGameClick = { viewModel.openNewGameDialog() }
                                 )
                             }
@@ -216,6 +225,72 @@ fun CriminalRussiaApp(
             }
 
             // Dialogs overlay
+            if (uiState.morningSummary != null) {
+                MorningNewsDialog(
+                    summary = uiState.morningSummary!!,
+                    onDismiss = { viewModel.dismissMorningSummary() }
+                )
+            }
+
+            if (uiState.showBossArenaDialog) {
+                ShowdownSelectDialog(
+                    bosses = uiState.rivalBosses,
+                    playerRank = uiState.rank,
+                    playerEnergy = uiState.energy,
+                    onSelectBoss = { viewModel.startBossShowdown(it) },
+                    onTalkWithBoss = { viewModel.openBossChat(it) },
+                    onDismiss = { viewModel.closeBossArena() }
+                )
+            }
+
+            if (uiState.showBossChatDialog && uiState.activeBossChat != null) {
+                BossChatDialog(
+                    chatState = uiState.activeBossChat!!,
+                    allBosses = uiState.rivalBosses,
+                    playerMoney = uiState.money,
+                    onSendMessage = { viewModel.sendBossChatMessage(it) },
+                    onSwitchBoss = { viewModel.switchBossInChat(it) },
+                    onPayTribute = { viewModel.payBossTribute() },
+                    onStartShowdownFromChat = { boss ->
+                        viewModel.closeBossChat()
+                        viewModel.startBossShowdown(boss)
+                    },
+                    onDismiss = { viewModel.closeBossChat() }
+                )
+            }
+
+            if (uiState.showOchkoDialog) {
+                CasinoDialog(
+                    ochkoState = uiState.ochkoState,
+                    playerMoney = uiState.money,
+                    onStartGame = { viewModel.startOchkoGame(it) },
+                    onHitCard = { viewModel.hitOchkoCard() },
+                    onStand = { viewModel.standOchko() },
+                    onDismiss = { viewModel.closeOchkoDialog() }
+                )
+            }
+
+            if (uiState.showGymDialog) {
+                GymDialog(
+                    currentStrength = uiState.strength,
+                    boxingSkill = uiState.skillBoxing,
+                    shootingSkill = uiState.skillShooting,
+                    energy = uiState.energy,
+                    onTrain = { viewModel.trainGym(it) },
+                    onDismiss = { viewModel.closeGymDialog() }
+                )
+            }
+
+            if (uiState.showSafeDialog) {
+                SafeDialog(
+                    cashMoney = uiState.money,
+                    safeMoney = uiState.safeMoney,
+                    onDeposit = { viewModel.depositToSafe(it) },
+                    onWithdraw = { viewModel.withdrawFromSafe(it) },
+                    onDismiss = { viewModel.closeSafeDialog() }
+                )
+            }
+
             if (uiState.activeEvent != null) {
                 RandomEventDialog(
                     event = uiState.activeEvent!!,

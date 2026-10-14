@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.ReputationRank
@@ -64,7 +65,7 @@ fun GameStatusBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(horizontal = 14.dp, vertical = 10.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             // Row 1: Nickname, Rank, Day and Next Day Button
             Row(
@@ -72,20 +73,25 @@ fun GameStatusBar(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Shield,
                             contentDescription = null,
                             tint = CrimeGold,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = uiState.nickname,
                             color = CrimeTextPrimary,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Surface(
@@ -95,47 +101,51 @@ fun GameStatusBar(
                             Text(
                                 text = uiState.rank.title,
                                 color = CrimeGoldLight,
-                                fontSize = 11.sp,
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                             )
                         }
                     }
                     Text(
-                        text = "День ${uiState.day} • Город в огне",
+                        text = "День ${uiState.day} • Энергия: ⚡ ${uiState.energy}%",
                         color = CrimeTextMuted,
-                        fontSize = 12.sp
+                        fontSize = 11.sp
                     )
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 // Next Day Button
                 Button(
                     onClick = onNextDayClick,
                     modifier = Modifier
-                        .height(38.dp)
+                        .height(34.dp)
                         .testTag("next_day_button"),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = CrimeGoldDark,
                         contentColor = Color.Black
                     ),
                     shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.FastForward,
                         contentDescription = "Следующий день",
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "След. день",
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Row 2: Money and Quick Treatment Buttons
             Row(
@@ -143,67 +153,72 @@ fun GameStatusBar(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
                     Icon(
                         imageVector = Icons.Default.MonetizationOn,
                         contentDescription = "Деньги",
                         tint = CrimeCashGreen,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "${formatNum(uiState.money)} ₽",
                         color = CrimeCashGreen,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 19.sp
+                        fontSize = 16.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     // Hospital button
                     FilledTonalButton(
                         onClick = onHealClick,
                         modifier = Modifier
-                            .height(32.dp)
+                            .height(30.dp)
                             .testTag("heal_button"),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = CrimeSurfaceHighlight,
                             contentColor = CrimeCrimsonLight
                         ),
                         shape = RoundedCornerShape(6.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        Icon(Icons.Default.LocalHospital, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Лечиться", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.LocalHospital, contentDescription = null, modifier = Modifier.size(13.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Больничка", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
 
                     // Bribe police button
                     FilledTonalButton(
                         onClick = onBribePoliceClick,
                         modifier = Modifier
-                            .height(32.dp)
+                            .height(30.dp)
                             .testTag("bribe_button"),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = if (uiState.policeHeat >= 70) CrimeHeatRed.copy(alpha = 0.2f) else CrimeSurfaceHighlight,
                             contentColor = if (uiState.policeHeat >= 70) CrimeHeatRed else CrimeTextSecondary
                         ),
                         shape = RoundedCornerShape(6.dp),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        Icon(Icons.Default.LocalPolice, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Отмазаться", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.LocalPolice, contentDescription = null, modifier = Modifier.size(13.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Отмазаться", fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // Row 3: Progress Bars for Health, Heat, and Respect
+            // Row 3: Progress Bars for Health, Energy, Heat, and Respect
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 // Health bar
                 StatBar(
@@ -212,6 +227,16 @@ fun GameStatusBar(
                     max = 100,
                     color = CrimeCrimsonLight,
                     icon = Icons.Default.Favorite,
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Energy bar
+                StatBar(
+                    label = "Энергия",
+                    current = uiState.energy,
+                    max = 100,
+                    color = CrimeGold,
+                    icon = Icons.Default.ElectricBolt,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -230,7 +255,7 @@ fun GameStatusBar(
                     label = "Авторитет",
                     current = uiState.respect % 500,
                     max = 500,
-                    color = CrimeGold,
+                    color = CrimeGoldLight,
                     icon = Icons.Default.MilitaryTech,
                     displayValue = "${uiState.respect}",
                     modifier = Modifier.weight(1f)
@@ -257,33 +282,38 @@ private fun StatBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f, fill = false)
+            ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = color,
-                    modifier = Modifier.size(11.dp)
+                    modifier = Modifier.size(10.dp)
                 )
-                Spacer(modifier = Modifier.width(3.dp))
+                Spacer(modifier = Modifier.width(2.dp))
                 Text(
                     text = label,
                     color = CrimeTextMuted,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
             Text(
-                text = displayValue ?: "$current/$max",
+                text = displayValue ?: "$current%",
                 color = color,
-                fontSize = 10.sp,
+                fontSize = 9.sp,
                 fontWeight = FontWeight.Bold
             )
         }
-        Spacer(modifier = Modifier.height(3.dp))
+        Spacer(modifier = Modifier.height(2.dp))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(6.dp)
+                .height(5.dp)
                 .clip(RoundedCornerShape(3.dp))
                 .background(CrimeSurfaceCard)
         ) {

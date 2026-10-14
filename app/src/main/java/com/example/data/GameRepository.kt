@@ -24,70 +24,10 @@ class GameRepository(private val context: Context) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("criminal_russia_prefs", Context.MODE_PRIVATE)
 
-    private val vibrator: Vibrator? by lazy {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val vibratorManager =
-                context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-            vibratorManager?.defaultVibrator
-        } else {
-            @Suppress("DEPRECATION")
-            context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-        }
-    }
-
-    private var toneGenerator: ToneGenerator? = null
-
-    init {
-        try {
-            toneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 80)
-        } catch (_: Exception) {
-            // Tone generator may not be available on all audio profiles
-        }
-    }
+    private val soundManager = com.example.data.sound.SoundManager(context)
 
     fun playSound(type: SoundType) {
-        try {
-            when (type) {
-                SoundType.CLICK -> toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 35)
-                SoundType.CASH -> {
-                    toneGenerator?.startTone(ToneGenerator.TONE_PROP_ACK, 120)
-                    vibrate(40)
-                }
-                SoundType.PUNCH -> {
-                    toneGenerator?.startTone(ToneGenerator.TONE_CDMA_KEYPAD_VOLUME_KEY_LITE, 80)
-                    vibrate(80)
-                }
-                SoundType.SHOT -> {
-                    toneGenerator?.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 150)
-                    vibrate(120)
-                }
-                SoundType.SIREN -> {
-                    toneGenerator?.startTone(ToneGenerator.TONE_CDMA_ALERT_AUTOREDIAL_LITE, 300)
-                    vibrate(250)
-                }
-                SoundType.VICTORY -> {
-                    toneGenerator?.startTone(ToneGenerator.TONE_PROP_PROMPT, 250)
-                    vibrate(100)
-                }
-            }
-        } catch (_: Exception) {
-        }
-    }
-
-    private fun vibrate(durationMs: Long) {
-        try {
-            vibrator?.let { v ->
-                if (v.hasVibrator()) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        v.vibrate(VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE))
-                    } else {
-                        @Suppress("DEPRECATION")
-                        v.vibrate(durationMs)
-                    }
-                }
-            }
-        } catch (_: Exception) {
-        }
+        soundManager.playSound(type)
     }
 
     // Default Catalog Data
@@ -100,10 +40,12 @@ class GameRepository(private val context: Context) {
             requiredRank = ReputationRank.SHNYR,
             minMoney = 500,
             maxMoney = 2500,
-            respectReward = 4,
-            heatPenalty = 5,
+            respectReward = 6,
+            heatPenalty = 6,
             healthRisk = 5,
-            baseSuccessRate = 85
+            baseSuccessRate = 85,
+            energyCost = 15,
+            hoursNeeded = 2
         ),
         CrimeItem(
             id = "crime_naperstki",
@@ -113,10 +55,12 @@ class GameRepository(private val context: Context) {
             requiredRank = ReputationRank.SHNYR,
             minMoney = 1500,
             maxMoney = 5000,
-            respectReward = 6,
+            respectReward = 10,
             heatPenalty = 8,
-            healthRisk = 10,
-            baseSuccessRate = 80
+            healthRisk = 8,
+            baseSuccessRate = 80,
+            energyCost = 20,
+            hoursNeeded = 3
         ),
         CrimeItem(
             id = "crime_palenka",
@@ -126,23 +70,27 @@ class GameRepository(private val context: Context) {
             requiredRank = ReputationRank.PATSAN,
             minMoney = 4000,
             maxMoney = 12000,
-            respectReward = 10,
+            respectReward = 18,
             heatPenalty = 12,
             healthRisk = 12,
-            baseSuccessRate = 75
+            baseSuccessRate = 75,
+            energyCost = 25,
+            hoursNeeded = 4
         ),
         CrimeItem(
             id = "crime_wheels",
             title = "Скрутить колёса с «Волги»",
-            description = "Ночная вылазка во двор обкомовской номенклатуры. Импортная резина стоит кучу денег.",
+            description = "Ночная вылазка во двор номенклатурного дома. Импортная резина стоит кучу денег.",
             category = CrimeCategory.STREET,
             requiredRank = ReputationRank.PATSAN,
             minMoney = 6000,
             maxMoney = 15000,
-            respectReward = 12,
+            respectReward = 22,
             heatPenalty = 14,
             healthRisk = 15,
-            baseSuccessRate = 72
+            baseSuccessRate = 72,
+            energyCost = 25,
+            hoursNeeded = 4
         ),
         CrimeItem(
             id = "crime_kiosk_racket",
@@ -152,11 +100,13 @@ class GameRepository(private val context: Context) {
             requiredRank = ReputationRank.BYK,
             minMoney = 15000,
             maxMoney = 35000,
-            respectReward = 20,
-            heatPenalty = 15,
+            respectReward = 35,
+            heatPenalty = 18,
             healthRisk = 20,
             baseSuccessRate = 70,
-            requiredStrength = 20
+            requiredStrength = 20,
+            energyCost = 35,
+            hoursNeeded = 5
         ),
         CrimeItem(
             id = "crime_debt_collection",
@@ -166,11 +116,13 @@ class GameRepository(private val context: Context) {
             requiredRank = ReputationRank.BYK,
             minMoney = 25000,
             maxMoney = 60000,
-            respectReward = 25,
-            heatPenalty = 20,
+            respectReward = 50,
+            heatPenalty = 22,
             healthRisk = 25,
             baseSuccessRate = 65,
-            requiredStrength = 30
+            requiredStrength = 30,
+            energyCost = 40,
+            hoursNeeded = 6
         ),
         CrimeItem(
             id = "crime_auto_theft",
@@ -180,10 +132,12 @@ class GameRepository(private val context: Context) {
             requiredRank = ReputationRank.BRIGADIR,
             minMoney = 50000,
             maxMoney = 120000,
-            respectReward = 35,
+            respectReward = 75,
             heatPenalty = 25,
             healthRisk = 20,
-            baseSuccessRate = 60
+            baseSuccessRate = 60,
+            energyCost = 45,
+            hoursNeeded = 6
         ),
         CrimeItem(
             id = "crime_warehouse_raid",
@@ -193,11 +147,13 @@ class GameRepository(private val context: Context) {
             requiredRank = ReputationRank.BRIGADIR,
             minMoney = 100000,
             maxMoney = 250000,
-            respectReward = 50,
+            respectReward = 120,
             heatPenalty = 30,
             healthRisk = 35,
             baseSuccessRate = 55,
-            requiredStrength = 40
+            requiredStrength = 40,
+            energyCost = 55,
+            hoursNeeded = 7
         ),
         CrimeItem(
             id = "crime_highway_intercept",
@@ -207,10 +163,12 @@ class GameRepository(private val context: Context) {
             requiredRank = ReputationRank.SMOTRYASHIY,
             minMoney = 200000,
             maxMoney = 450000,
-            respectReward = 75,
+            respectReward = 180,
             heatPenalty = 35,
             healthRisk = 30,
-            baseSuccessRate = 52
+            baseSuccessRate = 52,
+            energyCost = 65,
+            hoursNeeded = 8
         ),
         CrimeItem(
             id = "crime_factory_privatization",
@@ -220,10 +178,12 @@ class GameRepository(private val context: Context) {
             requiredRank = ReputationRank.SMOTRYASHIY,
             minMoney = 500000,
             maxMoney = 1200000,
-            respectReward = 120,
+            respectReward = 280,
             heatPenalty = 40,
             healthRisk = 30,
-            baseSuccessRate = 50
+            baseSuccessRate = 50,
+            energyCost = 75,
+            hoursNeeded = 10
         ),
         CrimeItem(
             id = "crime_bank_machinations",
@@ -233,10 +193,12 @@ class GameRepository(private val context: Context) {
             requiredRank = ReputationRank.AVTORITET,
             minMoney = 1500000,
             maxMoney = 3500000,
-            respectReward = 200,
+            respectReward = 450,
             heatPenalty = 45,
             healthRisk = 15,
-            baseSuccessRate = 48
+            baseSuccessRate = 48,
+            energyCost = 80,
+            hoursNeeded = 12
         ),
         CrimeItem(
             id = "crime_contraband_train",
@@ -246,10 +208,12 @@ class GameRepository(private val context: Context) {
             requiredRank = ReputationRank.AVTORITET,
             minMoney = 3000000,
             maxMoney = 7000000,
-            respectReward = 300,
+            respectReward = 700,
             heatPenalty = 50,
             healthRisk = 25,
-            baseSuccessRate = 45
+            baseSuccessRate = 45,
+            energyCost = 90,
+            hoursNeeded = 12
         )
     )
 
@@ -746,6 +710,14 @@ class GameRepository(private val context: Context) {
         day: Int,
         isJailed: Boolean,
         jailDaysLeft: Int,
+        energy: Int,
+        safeMoney: Long,
+        skillPoints: Int,
+        skillBoxing: Int,
+        skillShooting: Int,
+        skillStealth: Int,
+        skillLuck: Int,
+        skillToughness: Int,
         purchasedAssetIds: Set<String>,
         equippedAssetIds: Set<String>,
         hiredCrewIds: Set<String>,
@@ -753,7 +725,7 @@ class GameRepository(private val context: Context) {
         stats: PlayerStats,
         history: List<GameHistoryEntry>
     ) {
-        // Save hero data with core stats: Сила, Авторитет, Деньги, Здоровье in Room Database
+        // Save hero data with core stats: Сила, Авторитет, Деньги, Здоровье, Энергия in Room Database
         val characterEntity = CharacterEntity(
             id = 1,
             nickname = nickname,
@@ -761,6 +733,14 @@ class GameRepository(private val context: Context) {
             respect = respect,
             money = money,
             health = health,
+            energy = energy,
+            safeMoney = safeMoney,
+            skillPoints = skillPoints,
+            skillBoxing = skillBoxing,
+            skillShooting = skillShooting,
+            skillStealth = skillStealth,
+            skillLuck = skillLuck,
+            skillToughness = skillToughness,
             policeHeat = policeHeat,
             influence = influence,
             day = day,
@@ -772,7 +752,8 @@ class GameRepository(private val context: Context) {
             showdownsWon = stats.showdownsWon,
             totalEarned = stats.totalEarned,
             timesArrested = stats.timesArrested,
-            daysSurvived = stats.daysSurvived
+            daysSurvived = stats.daysSurvived,
+            casinoWins = stats.casinoWins
         )
         characterDao.insertOrUpdate(characterEntity)
 
@@ -787,6 +768,14 @@ class GameRepository(private val context: Context) {
         editor.putInt("day", day)
         editor.putBoolean("isJailed", isJailed)
         editor.putInt("jailDaysLeft", jailDaysLeft)
+        editor.putInt("energy", energy)
+        editor.putLong("safeMoney", safeMoney)
+        editor.putInt("skillPoints", skillPoints)
+        editor.putInt("skillBoxing", skillBoxing)
+        editor.putInt("skillShooting", skillShooting)
+        editor.putInt("skillStealth", skillStealth)
+        editor.putInt("skillLuck", skillLuck)
+        editor.putInt("skillToughness", skillToughness)
         editor.putStringSet("purchasedAssetIds", purchasedAssetIds)
         editor.putStringSet("equippedAssetIds", equippedAssetIds)
         editor.putStringSet("hiredCrewIds", hiredCrewIds)
@@ -803,6 +792,7 @@ class GameRepository(private val context: Context) {
         editor.putLong("stat_totalEarned", stats.totalEarned)
         editor.putInt("stat_timesArrested", stats.timesArrested)
         editor.putInt("stat_daysSurvived", stats.daysSurvived)
+        editor.putInt("stat_casinoWins", stats.casinoWins)
 
         // Save history as JSON array (last 30 items)
         val historyArr = JSONArray()
@@ -824,6 +814,89 @@ class GameRepository(private val context: Context) {
         prefs.edit().clear().apply()
     }
 
+    fun getMorningNews(day: Int): String {
+        val headlines = listOf(
+            "«Криминальная хроника»: На улицах процветает торговля у ларьков, милиция усиливает патрули.",
+            "«Коммерсантъ»: Курс доллара бьет рекорды. Челноки массово везут импортный трикотаж.",
+            "«Московский Комсомолец»: Перестрелка на авторынке в Южном порту: передел сфер влияния.",
+            "«Вечерняя Москва»: Власти объявили операцию «Перехват» против угонщиков иномарок.",
+            "«Срочный выпуск»: Налоговая инспекция проводит массовые ревизии кооперативных рынков.",
+            "«Голос Улиц»: Воровская сходка в загородном пансионате разделила город на новые сектора.",
+            "«Криминальный Вестник»: Крупнейшие заводы акционируются. Скупка ваучеров на пике популярности.",
+            "«Сводка МВД»: ОМОН провел рейды по подпольным казино и ночным клубам столицы.",
+            "«Деловая неделя»: Крупные криминальные авторитеты легализуют бизнес через ЧОПы и банки."
+        )
+        return headlines[(day - 1).coerceAtLeast(0) % headlines.size]
+    }
+
+    fun getRivalBosses(): List<RivalBoss> = listOf(
+        RivalBoss(
+            id = "boss_shtyr",
+            name = "Лёха Штырь",
+            title = "Гопник с подворотни",
+            description = "Дерзкий парень в спортивках «Абибас» с заточкой. Промышляет гоп-стопом возле гаражей.",
+            avatarEmoji = "🔪",
+            maxHp = 220,
+            attack = 18,
+            rewardMoney = 4000L,
+            rewardRespect = 35,
+            minRank = ReputationRank.SHNYR,
+            difficultyLabel = "Легко"
+        ),
+        RivalBoss(
+            id = "boss_kastet",
+            name = "Мишаня Кастет",
+            title = "Люберецкий качок",
+            description = "Здоровяк из подвальной качалки с чугунным кастетом. Кошмарит ларьки и коммерсантов.",
+            avatarEmoji = "🥊",
+            maxHp = 380,
+            attack = 28,
+            rewardMoney = 12000L,
+            rewardRespect = 80,
+            minRank = ReputationRank.PATSAN,
+            difficultyLabel = "Средне"
+        ),
+        RivalBoss(
+            id = "boss_klyk",
+            name = "Серый Клык",
+            title = "Бригадир с Вокзала",
+            description = "Опытный уголовник в косухе с обрезом ружья. Контролирует напёрсточников и карманников.",
+            avatarEmoji = "🐺",
+            maxHp = 550,
+            attack = 38,
+            rewardMoney = 35000L,
+            rewardRespect = 160,
+            minRank = ReputationRank.BYK,
+            difficultyLabel = "Опасно"
+        ),
+        RivalBoss(
+            id = "boss_baron",
+            name = "Барон Казанский",
+            title = "Рэкетир рынков и автобазы",
+            description = "Безжалостный лидер группировки, ездит на тонированной девятке с помповым дробовиком.",
+            avatarEmoji = "💣",
+            maxHp = 780,
+            attack = 48,
+            rewardMoney = 90000L,
+            rewardRespect = 320,
+            minRank = ReputationRank.BRIGADIR,
+            difficultyLabel = "Смертельно"
+        ),
+        RivalBoss(
+            id = "boss_mramor",
+            name = "Валера Мрамор",
+            title = "Смотрящий за Центром города",
+            description = "Хладнокровный босс синдиката. Носит малиновый пиджак, ствол Стечкина и армию верных головорезов.",
+            avatarEmoji = "👑",
+            maxHp = 1100,
+            attack = 60,
+            rewardMoney = 250000L,
+            rewardRespect = 650,
+            minRank = ReputationRank.SMOTRYASHIY,
+            difficultyLabel = "Босс Синдиката"
+        )
+    )
+
     suspend fun loadGameState(): SavedState {
         val roomHero = characterDao.getCharacterSync()
         val nickname = roomHero?.nickname ?: prefs.getString("nickname", "Седой") ?: "Седой"
@@ -836,6 +909,15 @@ class GameRepository(private val context: Context) {
         val day = roomHero?.day ?: prefs.getInt("day", 1)
         val isJailed = roomHero?.isJailed ?: prefs.getBoolean("isJailed", false)
         val jailDaysLeft = roomHero?.jailDaysLeft ?: prefs.getInt("jailDaysLeft", 0)
+        val energy = roomHero?.energy ?: prefs.getInt("energy", 100)
+        val safeMoney = roomHero?.safeMoney ?: prefs.getLong("safeMoney", 0L)
+        val skillPoints = roomHero?.skillPoints ?: prefs.getInt("skillPoints", 1)
+        val skillBoxing = roomHero?.skillBoxing ?: prefs.getInt("skillBoxing", 0)
+        val skillShooting = roomHero?.skillShooting ?: prefs.getInt("skillShooting", 0)
+        val skillStealth = roomHero?.skillStealth ?: prefs.getInt("skillStealth", 0)
+        val skillLuck = roomHero?.skillLuck ?: prefs.getInt("skillLuck", 0)
+        val skillToughness = roomHero?.skillToughness ?: prefs.getInt("skillToughness", 0)
+
         val purchasedAssetIds = prefs.getStringSet("purchasedAssetIds", emptySet()) ?: emptySet()
         val equippedAssetIds = prefs.getStringSet("equippedAssetIds", emptySet()) ?: emptySet()
         val hiredCrewIds = prefs.getStringSet("hiredCrewIds", emptySet()) ?: emptySet()
@@ -856,7 +938,8 @@ class GameRepository(private val context: Context) {
             showdownsWon = prefs.getInt("stat_showdownsWon", 0),
             totalEarned = prefs.getLong("stat_totalEarned", 5000L),
             timesArrested = prefs.getInt("stat_timesArrested", 0),
-            daysSurvived = prefs.getInt("stat_daysSurvived", 1)
+            daysSurvived = prefs.getInt("stat_daysSurvived", 1),
+            casinoWins = prefs.getInt("stat_casinoWins", 0)
         )
 
         val history = mutableListOf<GameHistoryEntry>()
@@ -889,6 +972,14 @@ class GameRepository(private val context: Context) {
             day = day,
             isJailed = isJailed,
             jailDaysLeft = jailDaysLeft,
+            energy = energy,
+            safeMoney = safeMoney,
+            skillPoints = skillPoints,
+            skillBoxing = skillBoxing,
+            skillShooting = skillShooting,
+            skillStealth = skillStealth,
+            skillLuck = skillLuck,
+            skillToughness = skillToughness,
             purchasedAssetIds = purchasedAssetIds,
             equippedAssetIds = equippedAssetIds,
             hiredCrewIds = hiredCrewIds,
@@ -909,6 +1000,14 @@ class GameRepository(private val context: Context) {
         val day: Int,
         val isJailed: Boolean,
         val jailDaysLeft: Int,
+        val energy: Int,
+        val safeMoney: Long,
+        val skillPoints: Int,
+        val skillBoxing: Int,
+        val skillShooting: Int,
+        val skillStealth: Int,
+        val skillLuck: Int,
+        val skillToughness: Int,
         val purchasedAssetIds: Set<String>,
         val equippedAssetIds: Set<String>,
         val hiredCrewIds: Set<String>,
@@ -919,5 +1018,5 @@ class GameRepository(private val context: Context) {
 }
 
 enum class SoundType {
-    CLICK, CASH, PUNCH, SHOT, SIREN, VICTORY
+    CLICK, CASH, PUNCH, SHOT, SIREN, VICTORY, CARD, RAGE, PHONE
 }
