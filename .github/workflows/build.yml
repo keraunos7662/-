@@ -11,31 +11,25 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: set up JDK 17
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
 
     - name: Create .env file
       run: |
         if [ -f .env.example ]; then cp .env.example .env; fi
-        find . -name ".env.example" -exec             sh -c 'cp "$1" "$(dirname "$1")/.env"' _ {} \;
+        find . -name ".env.example" -exec sh -c 'cp "$1" "$(dirname "$1")/.env"' _ {} \;
 
-    - name: Find and Grant execute permission for gradlew
+    - name: Install and Generate Gradle Wrapper
       run: |
-        GRADLEW_PATH=$(find . -name gradlew | head -n 1)
-        if [ -z "$GRADLEW_PATH" ]; then
-          echo "Gradlew not found!" && exit 1
-        fi
-        echo "GRADLEW_DIR=$(dirname "$GRADLEW_PATH")" >> $GITHUB_ENV
-        chmod +x "$GRADLEW_PATH"
+        sudo apt-get update && sudo apt-get install -y gradle
+        gradle wrapper --gradle-version 8.11
+        chmod +x gradlew
 
     - name: Build with Gradle
-      run: |
-        cd ${{ env.GRADLEW_DIR }}
-        ./gradlew assembleDebug
+      run: ./gradlew assembleDebug
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
