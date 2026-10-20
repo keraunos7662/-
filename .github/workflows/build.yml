@@ -25,7 +25,7 @@ jobs:
     - name: Install and Generate Gradle Wrapper
       run: |
         sudo apt-get update && sudo apt-get install -y gradle
-        gradle wrapper --gradle-version 8.11
+        gradle wrapper --gradle-version 9.3.1
         chmod +x gradlew
 
     - name: Build with Gradle
