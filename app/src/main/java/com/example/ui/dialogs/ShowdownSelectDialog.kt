@@ -187,7 +187,7 @@ fun ShowdownSelectDialog(
                                             modifier = Modifier.height(34.dp)
                                         ) {
                                             Text(
-                                                text = if (!isRankUnlocked) "Масть мала" else if (!hasEnergy) "Нет сил" else "⚔️ Стрелка",
+                                                text = if (!isRankUnlocked) "Масть мала" else if (!hasEnergy) "Нет сил" else "⚔️ 3D Стрелка",
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold
                                             )

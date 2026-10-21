@@ -25,8 +25,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.ShowdownState
+import com.example.ui.components.CombatArena3D
 import com.example.ui.theme.*
 import com.example.viewmodel.ShowdownAction
+
+enum class ShowdownViewMode {
+    ARENA_3D,
+    TACTICAL_2D
+}
 
 @Composable
 fun ShowdownScreen(
@@ -36,6 +42,8 @@ fun ShowdownScreen(
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
+    var viewMode by remember { mutableStateOf(ShowdownViewMode.ARENA_3D) }
+    var showFullLogDialog by remember { mutableStateOf(false) }
 
     // Auto-scroll log to bottom
     LaunchedEffect(showdown.battleLog.size) {
@@ -48,11 +56,11 @@ fun ShowdownScreen(
         modifier = modifier
             .fillMaxSize()
             .background(CrimeBgDark)
-            .padding(14.dp)
+            .padding(10.dp)
             .testTag("showdown_screen"),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Top Banner: Standoff Title & Round Counter
+        // TOP BAR: Standoff Title, Round, and 3D / 2D Switcher
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
@@ -64,7 +72,7 @@ fun ShowdownScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -73,267 +81,401 @@ fun ShowdownScreen(
                         Icons.Default.Dangerous,
                         contentDescription = null,
                         tint = CrimeCrimsonLight,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "БАНДИТСКАЯ СТРЕЛКА",
-                        fontSize = 15.sp,
+                        text = "СТРЕЛКА",
+                        fontSize = 14.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = CrimeTextPrimary,
                         letterSpacing = 1.sp
                     )
-                }
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = CrimeSurfaceHighlight
-                ) {
-                    Text(
-                        text = "РАУНД ${showdown.round}",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = CrimeGoldLight,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-            }
-        }
-
-        // Rival Card (Boss Info + Intent)
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = CrimeSurfaceCard),
-            border = CardDefaults.outlinedCardBorder().copy(
-                brush = Brush.horizontalGradient(listOf(CrimeCrimsonDark, CrimeBorder))
-            )
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Boss Avatar
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .clip(CircleShape)
-                            .background(CrimeCrimsonDark.copy(alpha = 0.5f))
-                            .border(1.5.dp, CrimeCrimsonLight, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = showdown.rivalAvatarEmoji.ifEmpty { "👊" },
-                            fontSize = 22.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = showdown.rivalName,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = CrimeCrimsonLight
-                        )
-                        Text(
-                            text = showdown.rivalTitle,
-                            fontSize = 11.sp,
-                            color = CrimeTextMuted
-                        )
-                    }
-
-                    Text(
-                        text = "${showdown.rivalCurrentHp}/${showdown.rivalMaxHp} HP",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = CrimeCrimsonLight
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-                val rivalProgress = (showdown.rivalCurrentHp.toFloat() / showdown.rivalMaxHp.toFloat()).coerceIn(0f, 1f)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(9.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(CrimeSurfaceDark)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(rivalProgress)
-                            .background(Brush.horizontalGradient(listOf(CrimeCrimsonDark, CrimeCrimsonLight)))
-                    )
-                }
-
-                if (!showdown.isFinished && showdown.rivalIntent.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Surface(
-                        shape = RoundedCornerShape(6.dp),
+                        shape = RoundedCornerShape(4.dp),
                         color = CrimeSurfaceHighlight
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp, vertical = 3.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(Icons.Default.Warning, contentDescription = null, tint = CrimeGold, modifier = Modifier.size(12.dp))
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = "Намерение врага: ${showdown.rivalIntent}",
-                                fontSize = 11.sp,
-                                color = CrimeGoldLight,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                        Text(
+                            text = "R${showdown.round}",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CrimeGoldLight,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
                     }
+                }
+
+                // 3D Arena vs 2D Tactical View Mode Toggle
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    FilterChip(
+                        selected = viewMode == ShowdownViewMode.ARENA_3D,
+                        onClick = { viewMode = ShowdownViewMode.ARENA_3D },
+                        label = { Text("🥊 3D Арена", fontSize = 11.sp, fontWeight = FontWeight.Bold) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = CrimeCrimsonDark,
+                            selectedLabelColor = Color.White
+                        ),
+                        modifier = Modifier.height(32.dp).testTag("mode_3d_button")
+                    )
+
+                    FilterChip(
+                        selected = viewMode == ShowdownViewMode.TACTICAL_2D,
+                        onClick = { viewMode = ShowdownViewMode.TACTICAL_2D },
+                        label = { Text("📋 2D", fontSize = 11.sp) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = CrimeSurfaceHighlight,
+                            selectedLabelColor = CrimeTextPrimary
+                        ),
+                        modifier = Modifier.height(32.dp).testTag("mode_2d_button")
+                    )
                 }
             }
         }
 
-        // Player Status Card (HP + Shield + Resources)
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(14.dp),
-            colors = CardDefaults.cardColors(containerColor = CrimeSurfaceCard),
-            border = CardDefaults.outlinedCardBorder().copy(
-                brush = Brush.horizontalGradient(listOf(CrimeCashGreen.copy(alpha = 0.5f), CrimeBorder))
-            )
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Твоё состояние",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = CrimeCashGreen
-                        )
-                        if (showdown.playerShield > 0) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = CrimePoliceBlue.copy(alpha = 0.3f)
-                            ) {
+        // MAIN CONTENT: 3D ARENA or CLASSIC 2D CARDS
+        if (viewMode == ShowdownViewMode.ARENA_3D) {
+            // ===================================
+            // 3D COMBAT ARENA VIEW
+            // ===================================
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                CombatArena3D(
+                    showdown = showdown,
+                    onAction = onAction,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            // Compact Player Status Bar (HP, Shield, Ammo, Rage)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                colors = CardDefaults.cardColors(containerColor = CrimeSurfaceCard),
+                border = CardDefaults.outlinedCardBorder().copy(brush = Brush.horizontalGradient(listOf(CrimeBorder, CrimeBorder)))
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Твоё HP: ",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = CrimeCashGreen
+                            )
+                            Text(
+                                text = "${showdown.playerCurrentHp}/${showdown.playerMaxHp}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = CrimeCashGreen
+                            )
+                            if (showdown.playerShield > 0) {
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Блок: ${showdown.playerShield} HP",
-                                    fontSize = 10.sp,
+                                    text = "🛡️ +${showdown.playerShield}",
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = CrimePoliceBlue,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                    color = CrimePoliceBlue
+                                )
+                            }
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "⚡ Ярость: ${showdown.rageMeter}%",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (showdown.rageMeter >= 100) CrimeGoldLight else CrimeSteel
+                            )
+                            TextButton(
+                                onClick = { showFullLogDialog = true },
+                                contentPadding = PaddingValues(0.dp),
+                                modifier = Modifier.height(24.dp)
+                            ) {
+                                Text("Лог боя 📜", fontSize = 11.sp, color = CrimeGoldLight)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+                    val playerProgress = (showdown.playerCurrentHp.toFloat() / showdown.playerMaxHp.toFloat()).coerceIn(0f, 1f)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(CrimeSurfaceDark)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(playerProgress)
+                                .background(Brush.horizontalGradient(listOf(CrimeCashGreen.copy(alpha = 0.6f), CrimeCashGreen)))
+                        )
+                    }
+
+                    // Ticker for last combat event
+                    if (showdown.battleLog.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "• ${showdown.battleLog.last()}",
+                            fontSize = 11.sp,
+                            color = CrimeTextPrimary,
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        } else {
+            // ===================================
+            // CLASSIC 2D TACTICAL VIEW
+            // ===================================
+            // Rival Card (Boss Info + Intent)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = CrimeSurfaceCard),
+                border = CardDefaults.outlinedCardBorder().copy(
+                    brush = Brush.horizontalGradient(listOf(CrimeCrimsonDark, CrimeBorder))
+                )
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Boss Avatar
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clip(CircleShape)
+                                .background(CrimeCrimsonDark.copy(alpha = 0.5f))
+                                .border(1.5.dp, CrimeCrimsonLight, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = showdown.rivalAvatarEmoji.ifEmpty { "👊" },
+                                fontSize = 22.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = showdown.rivalName,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = CrimeCrimsonLight
+                            )
+                            Text(
+                                text = showdown.rivalTitle,
+                                fontSize = 11.sp,
+                                color = CrimeTextMuted
+                            )
+                        }
+
+                        Text(
+                            text = "${showdown.rivalCurrentHp}/${showdown.rivalMaxHp} HP",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = CrimeCrimsonLight
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    val rivalProgress = (showdown.rivalCurrentHp.toFloat() / showdown.rivalMaxHp.toFloat()).coerceIn(0f, 1f)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(9.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(CrimeSurfaceDark)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(rivalProgress)
+                                .background(Brush.horizontalGradient(listOf(CrimeCrimsonDark, CrimeCrimsonLight)))
+                        )
+                    }
+
+                    if (!showdown.isFinished && showdown.rivalIntent.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = CrimeSurfaceHighlight
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = CrimeGold, modifier = Modifier.size(12.dp))
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    text = "Намерение врага: ${showdown.rivalIntent}",
+                                    fontSize = 11.sp,
+                                    color = CrimeGoldLight,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
                     }
-                    Text(
-                        text = "${showdown.playerCurrentHp}/${showdown.playerMaxHp} HP",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = CrimeCashGreen
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-                val playerProgress = (showdown.playerCurrentHp.toFloat() / showdown.playerMaxHp.toFloat()).coerceIn(0f, 1f)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(9.dp)
-                        .clip(RoundedCornerShape(5.dp))
-                        .background(CrimeSurfaceDark)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(playerProgress)
-                            .background(Brush.horizontalGradient(listOf(CrimeCashGreen.copy(alpha = 0.6f), CrimeCashGreen)))
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Ammo, First Aid, Adrenaline Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    ResourcePill(
-                        label = "Патроны",
-                        value = "${showdown.ammoCount}",
-                        icon = Icons.Default.FlashOn,
-                        color = CrimeGold
-                    )
-                    ResourcePill(
-                        label = "Аптечки",
-                        value = "${showdown.firstAidKits}",
-                        icon = Icons.Default.MedicalServices,
-                        color = CrimeCrimsonLight
-                    )
-                    ResourcePill(
-                        label = "Ярость",
-                        value = "${showdown.rageMeter}%",
-                        icon = Icons.Default.ElectricBolt,
-                        color = if (showdown.rageMeter >= 100) CrimeGoldLight else CrimeSteel
-                    )
                 }
             }
-        }
 
-        // Live Battle Log
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = CrimeSurfaceDark),
-            border = CardDefaults.outlinedCardBorder().copy(brush = Brush.horizontalGradient(listOf(CrimeBorder, CrimeBorder)))
-        ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(10.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+            // Player Status Card (HP + Shield + Resources)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = CrimeSurfaceCard),
+                border = CardDefaults.outlinedCardBorder().copy(
+                    brush = Brush.horizontalGradient(listOf(CrimeCashGreen.copy(alpha = 0.5f), CrimeBorder))
+                )
             ) {
-                items(showdown.battleLog) { message ->
-                    val isWin = message.contains("ПОБЕДА")
-                    val isLoss = message.contains("Поражение")
-                    val isCrit = message.contains("КРИТИЧЕСКИЙ") || message.contains("ЯРОСТНЫЙ")
-                    val isShot = message.contains("выстрел") || message.contains("волыны")
-                    val isBazar = message.contains("понятиям")
-
-                    val textColor = when {
-                        isWin -> CrimeGoldLight
-                        isLoss -> CrimeHeatRed
-                        isCrit -> CrimeGold
-                        isShot -> CrimeGoldLight
-                        isBazar -> CrimePoliceBlue
-                        else -> CrimeTextPrimary
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "Твоё состояние",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = CrimeCashGreen
+                            )
+                            if (showdown.playerShield > 0) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = CrimePoliceBlue.copy(alpha = 0.3f)
+                                ) {
+                                    Text(
+                                        text = "Блок: ${showdown.playerShield} HP",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = CrimePoliceBlue,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                        Text(
+                            text = "${showdown.playerCurrentHp}/${showdown.playerMaxHp} HP",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = CrimeCashGreen
+                        )
                     }
 
-                    Text(
-                        text = "• $message",
-                        fontSize = 12.sp,
-                        color = textColor,
-                        lineHeight = 16.sp,
-                        fontWeight = if (isWin || isLoss || isCrit) FontWeight.Bold else FontWeight.Normal
-                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    val playerProgress = (showdown.playerCurrentHp.toFloat() / showdown.playerMaxHp.toFloat()).coerceIn(0f, 1f)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(9.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(CrimeSurfaceDark)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth(playerProgress)
+                                .background(Brush.horizontalGradient(listOf(CrimeCashGreen.copy(alpha = 0.6f), CrimeCashGreen)))
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ResourcePill(
+                            label = "Патроны",
+                            value = "${showdown.ammoCount}",
+                            icon = Icons.Default.FlashOn,
+                            color = CrimeGold
+                        )
+                        ResourcePill(
+                            label = "Аптечки",
+                            value = "${showdown.firstAidKits}",
+                            icon = Icons.Default.MedicalServices,
+                            color = CrimeCrimsonLight
+                        )
+                        ResourcePill(
+                            label = "Ярость",
+                            value = "${showdown.rageMeter}%",
+                            icon = Icons.Default.ElectricBolt,
+                            color = if (showdown.rageMeter >= 100) CrimeGoldLight else CrimeSteel
+                        )
+                    }
+                }
+            }
+
+            // Live Battle Log in 2D Mode
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = CrimeSurfaceDark),
+                border = CardDefaults.outlinedCardBorder().copy(brush = Brush.horizontalGradient(listOf(CrimeBorder, CrimeBorder)))
+            ) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(showdown.battleLog) { message ->
+                        val isWin = message.contains("ПОБЕДА")
+                        val isLoss = message.contains("Поражение")
+                        val isCrit = message.contains("КРИТИЧЕСКИЙ") || message.contains("ЯРОСТНЫЙ")
+                        val isShot = message.contains("выстрел") || message.contains("волыны")
+                        val isBazar = message.contains("понятиям")
+
+                        val textColor = when {
+                            isWin -> CrimeGoldLight
+                            isLoss -> CrimeHeatRed
+                            isCrit -> CrimeGold
+                            isShot -> CrimeGoldLight
+                            isBazar -> CrimePoliceBlue
+                            else -> CrimeTextPrimary
+                        }
+
+                        Text(
+                            text = "• $message",
+                            fontSize = 12.sp,
+                            color = textColor,
+                            lineHeight = 16.sp,
+                            fontWeight = if (isWin || isLoss || isCrit) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
                 }
             }
         }
 
-        // Actions Grid or Battle Outcome
+        // TACTICAL ACTIONS (Only in 2D mode, as 3D Arena has built-in arcade controls) or OUTCOME CARD
         if (!showdown.isFinished) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (viewMode == ShowdownViewMode.TACTICAL_2D) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 // Row 1: Punch & Shoot
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -428,7 +570,7 @@ fun ShowdownScreen(
                         onClick = { onAction(ShowdownAction.FLEE) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(38.dp)
+                            .height(36.dp)
                             .testTag("action_flee"),
                         shape = RoundedCornerShape(8.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = CrimeTextMuted)
@@ -439,7 +581,8 @@ fun ShowdownScreen(
                     }
                 }
             }
-        } else {
+        }
+    } else {
             // Battle finished: Outcome card
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -491,6 +634,43 @@ fun ShowdownScreen(
                 }
             }
         }
+    }
+
+    // Modal dialog for full battle log if in 3D mode
+    if (showFullLogDialog) {
+        AlertDialog(
+            onDismissRequest = { showFullLogDialog = false },
+            title = {
+                Text(
+                    text = "Хроника стрелки",
+                    fontWeight = FontWeight.Bold,
+                    color = CrimeGoldLight
+                )
+            },
+            text = {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(260.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(showdown.battleLog) { msg ->
+                        Text(
+                            text = "• $msg",
+                            fontSize = 12.sp,
+                            color = CrimeTextPrimary
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showFullLogDialog = false }) {
+                    Text("Закрыть", color = CrimeGoldLight)
+                }
+            },
+            containerColor = CrimeSurfaceDark,
+            shape = RoundedCornerShape(12.dp)
+        )
     }
 }
 

@@ -236,6 +236,7 @@ data class BossChatMessage(
     val id: String = java.util.UUID.randomUUID().toString(),
     val sender: MessageSender,
     val text: String,
+    val isAiGenerated: Boolean = false,
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -245,5 +246,12 @@ data class BossChatState(
     val isLoading: Boolean = false,
     val relationshipScore: Int = 0,
     val statusNote: String = "Напряжённый базар",
-    val error: String? = null
+    val isAiConnected: Boolean = true,
+    val error: String? = null,
+    val patienceIrritation: Int = 0,
+    val moodStatus: String = "Спокоен, крутит чётки",
+    val moodEmoji: String = "🚬",
+    val isAttacking: Boolean = false,
+    val attackReason: String? = null
 )
+

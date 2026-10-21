@@ -368,6 +368,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val bosses = _uiState.value.rivalBosses.ifEmpty { repository.getRivalBosses() }
         val boss = targetBoss ?: bosses.firstOrNull() ?: return
         val currentChat = _uiState.value.activeBossChat
+
+        val initialIrritation = when (boss.id) {
+            "boss_shtyr" -> 15
+            "boss_kastet" -> 25
+            "boss_klyk" -> 10
+            "boss_baron" -> 20
+            "boss_mramor" -> 5
+            else -> 10
+        }
+        val (initialMoodText, initialMoodEmoji) = getMoodForIrritation(initialIrritation)
+
         val initialMessages = if (currentChat != null && currentChat.boss.id == boss.id && currentChat.messages.isNotEmpty()) {
             currentChat.messages
         } else {
@@ -396,7 +407,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 activeBossChat = BossChatState(
                     boss = boss,
                     messages = initialMessages,
-                    relationshipScore = currentChat?.takeIf { c -> c.boss.id == boss.id }?.relationshipScore ?: 0
+                    relationshipScore = currentChat?.takeIf { c -> c.boss.id == boss.id }?.relationshipScore ?: 0,
+                    patienceIrritation = currentChat?.takeIf { c -> c.boss.id == boss.id }?.patienceIrritation ?: initialIrritation,
+                    moodStatus = initialMoodText,
+                    moodEmoji = initialMoodEmoji,
+                    isAttacking = false
                 )
             )
         }
@@ -417,7 +432,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         val state = _uiState.value
         val currentChat = state.activeBossChat ?: return
-        if (currentChat.isLoading) return
+        if (currentChat.isLoading || currentChat.isAttacking) return
 
         val playerMsg = BossChatMessage(
             sender = MessageSender.PLAYER,
@@ -445,19 +460,28 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 heroRank = state.rank,
                 heroRespect = state.respect,
                 heroMoney = state.money,
-                districtsCount = state.districts.count { it.controlPercent >= 50 }
+                districtsCount = state.districts.count { it.controlPercent >= 50 },
+                currentIrritation = currentChat.patienceIrritation
             )
 
             val bossMsg = BossChatMessage(
                 sender = MessageSender.BOSS,
-                text = reply.text
+                text = reply.text,
+                isAiGenerated = reply.isAiGenerated
             )
 
             val newScore = (currentChat.relationshipScore + reply.sentimentDelta).coerceIn(-100, 100)
+            val newIrritation = (currentChat.patienceIrritation + reply.irritationDelta).coerceIn(0, 100)
+            val (moodText, moodEmoji) = getMoodForIrritation(newIrritation)
+            val willAttack = reply.isAttackTriggered || newIrritation >= 100
 
-            if (reply.sentimentDelta > 0) {
+            if (willAttack) {
+                repository.playSound(SoundType.RAGE)
+                kotlinx.coroutines.delay(350)
+                repository.playSound(SoundType.SHOT)
+            } else if (reply.sentimentDelta > 0) {
                 repository.playSound(SoundType.CASH)
-            } else if (reply.sentimentDelta < -10) {
+            } else if (newIrritation >= 65 || reply.sentimentDelta < -10) {
                 repository.playSound(SoundType.PUNCH)
             } else {
                 repository.playSound(SoundType.CLICK)
@@ -475,7 +499,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                         activeBossChat = chat.copy(
                             messages = chat.messages + bossMsg,
                             isLoading = false,
-                            relationshipScore = newScore
+                            relationshipScore = if (willAttack) (newScore - 30).coerceIn(-100, 100) else newScore,
+                            isAiConnected = reply.isAiGenerated,
+                            patienceIrritation = newIrritation,
+                            moodStatus = if (willAttack) "В БЕШЕНСТВЕ! ДОСТАЁТ ВОЛЫНУ!" else moodText,
+                            moodEmoji = if (willAttack) "💥" else moodEmoji,
+                            isAttacking = willAttack,
+                            attackReason = if (willAttack) "Терпение босса лопнуло на базаре!" else null
                         )
                     )
                 } else s
@@ -483,7 +513,54 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             if (respectBonus > 0) {
                 persistState()
             }
+
+            // If patience reached the limit, automatically transition to battle after a short dramatic pause
+            if (willAttack) {
+                kotlinx.coroutines.delay(2000)
+                if (_uiState.value.showBossChatDialog && _uiState.value.activeBossChat?.isAttacking == true) {
+                    triggerBossAmbushShowdown(currentChat.boss)
+                }
+            }
         }
+    }
+
+    fun offerBossCigarette() {
+        val state = _uiState.value
+        val chat = state.activeBossChat ?: return
+        if (chat.isLoading || chat.isAttacking) return
+
+        val playerMsg = BossChatMessage(
+            sender = MessageSender.PLAYER,
+            text = "Держи папиросу «Беломор», браток. Закури, переведи дух."
+        )
+        val newIrritation = (chat.patienceIrritation - 30).coerceAtLeast(0)
+        val (moodText, moodEmoji) = getMoodForIrritation(newIrritation)
+        val newScore = (chat.relationshipScore + 15).coerceAtMost(100)
+
+        repository.playSound(SoundType.CLICK)
+
+        val smokeReplies = listOf(
+            "Дёрнул дымка... «Беломор» — наш табак, душевный. Ладно, чутка попустило. Говори дальше, но без выкрутасов.",
+            "Уважил куревом. Ладно, слушаю тебя внимательно, пацан. Чё за тему трёшь?",
+            "Закурил... Хорошо пошла. Умеешь подход найти. Выкладывай, с чем пришёл."
+        )
+        val bossMsg = BossChatMessage(
+            sender = MessageSender.BOSS,
+            text = smokeReplies.random()
+        )
+
+        _uiState.update {
+            it.copy(
+                activeBossChat = chat.copy(
+                    messages = chat.messages + playerMsg + bossMsg,
+                    relationshipScore = newScore,
+                    patienceIrritation = newIrritation,
+                    moodStatus = moodText,
+                    moodEmoji = moodEmoji
+                )
+            )
+        }
+        persistState()
     }
 
     fun payBossTribute() {
@@ -499,6 +576,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val newMoney = state.money - tributeAmount
         val newHeat = (state.policeHeat - 8).coerceAtLeast(0)
         val newScore = (chat.relationshipScore + 30).coerceAtMost(100)
+        val newIrritation = (chat.patienceIrritation - 45).coerceAtLeast(0)
+        val (moodText, moodEmoji) = getMoodForIrritation(newIrritation)
 
         repository.playSound(SoundType.CASH)
 
@@ -513,11 +592,67 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 policeHeat = newHeat,
                 activeBossChat = chat.copy(
                     messages = chat.messages + bossThankMsg,
-                    relationshipScore = newScore
+                    relationshipScore = newScore,
+                    patienceIrritation = newIrritation,
+                    moodStatus = moodText,
+                    moodEmoji = moodEmoji
                 )
             )
         }
         persistState()
+    }
+
+    fun triggerBossAmbushShowdown(boss: RivalBoss) {
+        val state = _uiState.value
+        val playerEffectiveHp = (state.health + (state.skillToughness * 15)).coerceAtLeast(40)
+
+        val showdown = ShowdownState(
+            rivalName = boss.name,
+            rivalTitle = boss.title,
+            rivalMaxHp = boss.maxHp,
+            rivalCurrentHp = boss.maxHp,
+            rivalAttack = boss.attack,
+            playerMaxHp = playerEffectiveHp,
+            playerCurrentHp = playerEffectiveHp,
+            playerShield = 0,
+            firstAidKits = 2,
+            ammoCount = 6,
+            rageMeter = 1,
+            round = 1,
+            rivalIntent = "В ярости палит в упор!",
+            rivalAvatarEmoji = boss.avatarEmoji,
+            rewardMoney = boss.rewardMoney,
+            rewardRespect = boss.rewardRespect,
+            battleLog = listOf(
+                "⚡ ВНЕЗАПНОЕ НАПАДЕНИЕ!",
+                "У ${boss.name} окончательно лопнуло терпение на базаре!",
+                "Босс выхватил волыну и крикнул: «Валите фраера наглухо!»"
+            ),
+            isFinished = false,
+            isPlayerWon = false,
+            districtId = null
+        )
+
+        repository.playSound(SoundType.SHOT)
+
+        _uiState.update {
+            it.copy(
+                showBossChatDialog = false,
+                activeBossChat = null,
+                activeShowdown = showdown
+            )
+        }
+        persistState()
+    }
+
+    private fun getMoodForIrritation(irritation: Int): Pair<String, String> {
+        return when {
+            irritation <= 30 -> Pair("Спокоен, крутит чётки", "🚬")
+            irritation in 31..60 -> Pair("Смотрит с прищуром, прислушивается", "🤨")
+            irritation in 61..84 -> Pair("Стучит кастетом по столу, закипает", "😠")
+            irritation in 85..99 -> Pair("Братва за спиной сняла предохранители!", "⚠️")
+            else -> Pair("В БЕШЕНСТВЕ! ДОСТАЁТ ВОЛЫНУ!", "💥")
+        }
     }
 
     fun startBossShowdown(boss: RivalBoss) {

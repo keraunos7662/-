@@ -322,7 +322,7 @@ fun DashboardScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "Базар с ИИ-боссами",
+                                text = "Стрелка с авторитетами",
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = CrimeGoldLight
@@ -333,7 +333,7 @@ fun DashboardScreen(
                                 color = CrimeCrimsonDark
                             ) {
                                 Text(
-                                    text = "ИИ ЧАТ",
+                                    text = "ПЕРЕГОВОРЫ",
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = CrimeTextPrimary,
@@ -375,8 +375,8 @@ fun DashboardScreen(
                     modifier = Modifier.weight(1f)
                 )
                 QuickHubTile(
-                    title = "Стрелки & Боссы",
-                    subtitle = "Разборки с авторитетами",
+                    title = "3D Стрелки",
+                    subtitle = "3D бои с боссами",
                     icon = Icons.Default.Dangerous,
                     color = CrimeHeatRed,
                     onClick = onOpenBossArena,

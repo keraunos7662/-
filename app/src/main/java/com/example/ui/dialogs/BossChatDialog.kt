@@ -34,7 +34,6 @@ import com.example.model.BossChatState
 import com.example.model.MessageSender
 import com.example.model.RivalBoss
 import com.example.ui.theme.*
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -47,22 +46,44 @@ fun BossChatDialog(
     onSendMessage: (String) -> Unit,
     onSwitchBoss: (RivalBoss) -> Unit,
     onPayTribute: () -> Unit,
+    onOfferCigarette: () -> Unit,
     onStartShowdownFromChat: (RivalBoss) -> Unit,
     onDismiss: () -> Unit
 ) {
     var inputText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
 
-    // Auto-scroll to bottom on new messages
+    // Auto-scroll to bottom on new messages or typing state
     LaunchedEffect(chatState.messages.size, chatState.isLoading) {
         if (chatState.messages.isNotEmpty()) {
             listState.animateScrollToItem(chatState.messages.size - 1)
         }
     }
 
+    val moodColor = when {
+        chatState.isAttacking -> CrimeCrimson
+        chatState.moodEmoji == "⚠️" -> Color(0xFFFF5252)
+        chatState.moodEmoji == "😠" -> Color(0xFFFF9800)
+        chatState.moodEmoji == "🤨" -> CrimeGoldLight
+        else -> CrimeCashGreen
+    }
+
+    // Avatar border pulse if angry or attacking
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val attackBorderAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(450, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "attackBorderAlpha"
+    )
+
     Dialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            if (!chatState.isAttacking) onDismiss()
+        },
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Card(
@@ -73,7 +94,10 @@ fun BossChatDialog(
             shape = RoundedCornerShape(18.dp),
             colors = CardDefaults.cardColors(containerColor = CrimeSurfaceDark),
             border = CardDefaults.outlinedCardBorder().copy(
-                brush = Brush.verticalGradient(listOf(CrimeCrimson, CrimeGold, CrimeBorder))
+                brush = Brush.verticalGradient(
+                    if (chatState.isAttacking) listOf(CrimeCrimson, Color.Red, CrimeCrimsonDark)
+                    else listOf(CrimeCrimson, CrimeGold, CrimeBorder)
+                )
             )
         ) {
             Column(
@@ -81,48 +105,50 @@ fun BossChatDialog(
                     .fillMaxSize()
                     .padding(14.dp)
             ) {
-                // Header: Current Boss Info & Close
+                // Header: Boss Identity & Live Demeanor
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
+                            .size(50.dp)
                             .clip(CircleShape)
                             .background(CrimeSurfaceCard)
-                            .border(1.5.dp, CrimeCrimson, CircleShape),
+                            .border(
+                                width = if (chatState.isAttacking) 2.5.dp else 1.5.dp,
+                                color = if (chatState.isAttacking) CrimeCrimson.copy(alpha = attackBorderAlpha) else moodColor,
+                                shape = CircleShape
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = chatState.boss.avatarEmoji, fontSize = 24.sp)
+                        Text(text = chatState.boss.avatarEmoji, fontSize = 26.sp)
+
+                        // Small mood emoji in corner
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(18.dp)
+                                .clip(CircleShape)
+                                .background(CrimeSurfaceDark)
+                                .border(1.dp, moodColor, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = chatState.moodEmoji, fontSize = 11.sp)
+                        }
                     }
 
                     Spacer(modifier = Modifier.width(10.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = chatState.boss.name,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = CrimeTextPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Surface(
-                                shape = RoundedCornerShape(4.dp),
-                                color = CrimeCrimsonDark.copy(alpha = 0.5f)
-                            ) {
-                                Text(
-                                    text = "ИИ БОСС",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = CrimeGoldLight,
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                                )
-                            }
-                        }
+                        Text(
+                            text = chatState.boss.name,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = CrimeTextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
 
                         Text(
                             text = chatState.boss.title,
@@ -132,11 +158,21 @@ fun BossChatDialog(
                             overflow = TextOverflow.Ellipsis
                         )
 
+                        // Living Boss Mood Status (No AI indicators!)
+                        Text(
+                            text = chatState.moodStatus,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = moodColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
                         // Relationship Indicator
                         val (relText, relColor) = getRelationshipInfo(chatState.relationshipScore)
                         Text(
                             text = "Отношение: $relText (${chatState.relationshipScore})",
-                            fontSize = 10.sp,
+                            fontSize = 9.sp,
                             fontWeight = FontWeight.Medium,
                             color = relColor
                         )
@@ -144,7 +180,8 @@ fun BossChatDialog(
 
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.testTag("boss_chat_close_btn")
+                        modifier = Modifier.testTag("boss_chat_close_btn"),
+                        enabled = !chatState.isAttacking
                     ) {
                         Icon(Icons.Default.Close, contentDescription = "Закрыть", tint = CrimeTextMuted)
                     }
@@ -153,46 +190,94 @@ fun BossChatDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Boss Selector Strip (Quick switch between bosses)
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items(allBosses) { b ->
-                        val isSelected = b.id == chatState.boss.id
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isSelected) CrimeCrimson.copy(alpha = 0.35f) else CrimeSurfaceCard,
-                            border = CardDefaults.outlinedCardBorder().copy(
-                                brush = Brush.horizontalGradient(
-                                    if (isSelected) listOf(CrimeCrimson, CrimeGold)
-                                    else listOf(CrimeBorder, CrimeBorder)
-                                )
-                            ),
-                            modifier = Modifier.clickable {
-                                if (!isSelected) onSwitchBoss(b)
-                            }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                if (!chatState.isAttacking) {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(allBosses) { b ->
+                            val isSelected = b.id == chatState.boss.id
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) CrimeCrimson.copy(alpha = 0.35f) else CrimeSurfaceCard,
+                                border = CardDefaults.outlinedCardBorder().copy(
+                                    brush = Brush.horizontalGradient(
+                                        if (isSelected) listOf(CrimeCrimson, CrimeGold)
+                                        else listOf(CrimeBorder, CrimeBorder)
+                                    )
+                                ),
+                                modifier = Modifier.clickable {
+                                    if (!isSelected && !chatState.isLoading) onSwitchBoss(b)
+                                }
                             ) {
-                                Text(text = b.avatarEmoji, fontSize = 13.sp)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = b.name.split(" ").firstOrNull() ?: b.name,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) CrimeGoldLight else CrimeTextSecondary
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = b.avatarEmoji, fontSize = 13.sp)
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = b.name.split(" ").firstOrNull() ?: b.name,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) CrimeGoldLight else CrimeTextSecondary
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
                 HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 8.dp),
+                    modifier = Modifier.padding(vertical = 6.dp),
                     color = CrimeBorder.copy(alpha = 0.4f)
                 )
+
+                // Attack Banner when Patience Runs Out
+                AnimatedVisibility(visible = chatState.isAttacking) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = CrimeCrimson.copy(alpha = 0.95f)),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "💥", fontSize = 24.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "ТЕРПЕНИЕ БОССА ЛОПНУЛО!",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "${chatState.boss.name} кричит: «Валите фраера!» и бросается в атаку!",
+                                    fontSize = 10.sp,
+                                    color = Color.White.copy(alpha = 0.9f)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Button(
+                                onClick = { onStartShowdownFromChat(chatState.boss) },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
+                                shape = RoundedCornerShape(6.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "В БОЙ!",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = CrimeGold
+                                )
+                            }
+                        }
+                    }
+                }
 
                 // Messages Chat Area
                 Box(
@@ -222,7 +307,7 @@ fun BossChatDialog(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Начни разговор по понятиям. Напиши свой вопрос или выбери реплику ниже.",
+                                text = "Базарь по понятиям. Не дерзи без нужды — терпение авторитета не бесконечно.",
                                 fontSize = 11.sp,
                                 color = CrimeTextMuted,
                                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -244,7 +329,10 @@ fun BossChatDialog(
 
                             if (chatState.isLoading) {
                                 item {
-                                    TypingIndicator(bossName = chatState.boss.name)
+                                    LivelyTypingIndicator(
+                                        bossName = chatState.boss.name,
+                                        bossAvatar = chatState.boss.avatarEmoji
+                                    )
                                 }
                             }
                         }
@@ -254,127 +342,152 @@ fun BossChatDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Quick Action Suggestion Chips
-                val quickPhrases = remember(chatState.boss.id) {
-                    listOf(
-                        "Ты под кем ходишь?",
-                        "Давай решим миром",
-                        "Предлагаю общий бизнес",
-                        "Чо дерзишь, фраер?",
-                        "Какой процент с района хочешь?"
-                    )
-                }
+                if (!chatState.isAttacking) {
+                    val quickPhrases = remember(chatState.boss.id) {
+                        listOf(
+                            "🤝 Давай решим миром",
+                            "🚬 Угостить папиросой",
+                            "💼 Предлагаю общий бизнес",
+                            "❓ Ты под кем ходишь?",
+                            "👊 Ты кто такой, чтоб быковать?",
+                            "🔪 Слышь, не быкуй, перо словишь!"
+                        )
+                    }
 
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    items(quickPhrases) { phrase ->
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = CrimeSurfaceHighlight,
-                            border = CardDefaults.outlinedCardBorder().copy(
-                                brush = Brush.horizontalGradient(listOf(CrimeBorder, CrimeGoldDark.copy(alpha = 0.5f)))
-                            ),
-                            modifier = Modifier.clickable(enabled = !chatState.isLoading) {
-                                onSendMessage(phrase)
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(quickPhrases) { rawPhrase ->
+                            val cleanText = rawPhrase.substringAfter(" ")
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (cleanText.contains("быку") || cleanText.contains("перо")) CrimeCrimsonDark.copy(alpha = 0.4f) else CrimeSurfaceHighlight,
+                                border = CardDefaults.outlinedCardBorder().copy(
+                                    brush = Brush.horizontalGradient(
+                                        if (cleanText.contains("быку") || cleanText.contains("перо")) listOf(CrimeCrimson, CrimeCrimsonDark)
+                                        else listOf(CrimeBorder, CrimeGoldDark.copy(alpha = 0.5f))
+                                    )
+                                ),
+                                modifier = Modifier.clickable(enabled = !chatState.isLoading && !chatState.isAttacking) {
+                                    if (cleanText.contains("папирос")) {
+                                        onOfferCigarette()
+                                    } else {
+                                        onSendMessage(cleanText)
+                                    }
+                                }
+                            ) {
+                                Text(
+                                    text = rawPhrase,
+                                    fontSize = 11.sp,
+                                    color = if (cleanText.contains("быку") || cleanText.contains("перо")) Color(0xFFFF8A80) else CrimeGoldLight,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                                )
                             }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Message Text Field & Send Button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("boss_chat_input"),
+                            placeholder = {
+                                Text("Базар по понятиям...", fontSize = 12.sp, color = CrimeTextMuted)
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = CrimeCrimson,
+                                unfocusedBorderColor = CrimeBorder,
+                                focusedTextColor = CrimeTextPrimary,
+                                unfocusedTextColor = CrimeTextPrimary,
+                                cursorColor = CrimeGold
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true,
+                            enabled = !chatState.isLoading && !chatState.isAttacking
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        IconButton(
+                            onClick = {
+                                val msg = inputText.trim()
+                                if (msg.isNotEmpty() && !chatState.isLoading && !chatState.isAttacking) {
+                                    onSendMessage(msg)
+                                    inputText = ""
+                                }
+                            },
+                            enabled = inputText.isNotBlank() && !chatState.isLoading && !chatState.isAttacking,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    if (inputText.isNotBlank() && !chatState.isLoading && !chatState.isAttacking) CrimeCrimson
+                                    else CrimeSurfaceCard
+                                )
+                                .testTag("boss_chat_send_btn")
                         ) {
-                            Text(
-                                text = phrase,
-                                fontSize = 11.sp,
-                                color = CrimeGoldLight,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                            Icon(
+                                Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Отправить",
+                                tint = if (inputText.isNotBlank()) CrimeTextPrimary else CrimeTextMuted
                             )
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                // Message Text Field & Send Button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("boss_chat_input"),
-                        placeholder = {
-                            Text("Базар по понятиям...", fontSize = 12.sp, color = CrimeTextMuted)
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = CrimeCrimson,
-                            unfocusedBorderColor = CrimeBorder,
-                            focusedTextColor = CrimeTextPrimary,
-                            unfocusedTextColor = CrimeTextPrimary,
-                            cursorColor = CrimeGold
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        singleLine = true
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    IconButton(
-                        onClick = {
-                            val msg = inputText.trim()
-                            if (msg.isNotEmpty() && !chatState.isLoading) {
-                                onSendMessage(msg)
-                                inputText = ""
-                            }
-                        },
-                        enabled = inputText.isNotBlank() && !chatState.isLoading,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (inputText.isNotBlank() && !chatState.isLoading) CrimeCrimson
-                                else CrimeSurfaceCard
-                            )
-                            .testTag("boss_chat_send_btn")
+                    // Bottom Action Buttons: Smoke Peace, Tribute or Showdown Fight
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Отправить",
-                            tint = if (inputText.isNotBlank()) CrimeTextPrimary else CrimeTextMuted
-                        )
-                    }
-                }
+                        val tributeAmount = 3000L
+                        val canAffordTribute = playerMoney >= tributeAmount
 
-                Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = onOfferCigarette,
+                            enabled = !chatState.isLoading && !chatState.isAttacking,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = CrimeGoldLight),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(text = "🚬 Курево", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
 
-                // Bottom Action Buttons: Tribute or Showdown Fight
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val tributeAmount = 3000L
-                    val canAffordTribute = playerMoney >= tributeAmount
+                        OutlinedButton(
+                            onClick = onPayTribute,
+                            enabled = canAffordTribute && !chatState.isLoading && !chatState.isAttacking,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = CrimeCashGreen),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp),
+                            modifier = Modifier.weight(1.3f)
+                        ) {
+                            Icon(Icons.Default.MonetizationOn, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(text = "Откуп (3к ₽)", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
 
-                    OutlinedButton(
-                        onClick = onPayTribute,
-                        enabled = canAffordTribute && !chatState.isLoading,
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = CrimeCashGreen),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.MonetizationOn, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "Откуп ($tributeAmount ₽)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    }
-
-                    Button(
-                        onClick = { onStartShowdownFromChat(chatState.boss) },
-                        colors = ButtonDefaults.buttonColors(containerColor = CrimeCrimson),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.FlashOn, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "На стрелку (Бой)", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = { onStartShowdownFromChat(chatState.boss) },
+                            colors = ButtonDefaults.buttonColors(containerColor = CrimeCrimson),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp),
+                            modifier = Modifier.weight(1.2f)
+                        ) {
+                            Icon(Icons.Default.FlashOn, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(text = "Бой", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             }
@@ -454,30 +567,99 @@ private fun ChatMessageBubble(
 }
 
 @Composable
-private fun TypingIndicator(bossName: String) {
-    val infiniteTransition = rememberInfiniteTransition(label = "typing")
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.3f,
-        targetValue = 1f,
+private fun LivelyTypingIndicator(bossName: String, bossAvatar: String) {
+    val infiniteTransition = rememberInfiniteTransition(label = "dots")
+
+    val dot1Scale by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1.2f,
         animationSpec = infiniteRepeatable(
-            animation = tween(600, easing = LinearEasing),
+            animation = tween(400, delayMillis = 0, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
-        label = "alpha"
+        label = "d1"
+    )
+
+    val dot2Scale by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(400, delayMillis = 150, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "d2"
+    )
+
+    val dot3Scale by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(400, delayMillis = 300, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "d3"
     )
 
     Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(4.dp)
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Start,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = "💬", fontSize = 14.sp)
+        Box(
+            modifier = Modifier
+                .size(26.dp)
+                .clip(CircleShape)
+                .background(CrimeSurfaceHighlight),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = bossAvatar, fontSize = 13.sp)
+        }
+
         Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = "$bossName обдумывает ответ...",
-            fontSize = 11.sp,
-            color = CrimeGoldLight.copy(alpha = alpha),
-            fontWeight = FontWeight.Medium
-        )
+
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = CrimeSurfaceCard,
+            border = CardDefaults.outlinedCardBorder().copy(
+                brush = Brush.horizontalGradient(listOf(CrimeCrimson.copy(alpha = 0.3f), CrimeBorder))
+            )
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = "$bossName печатает",
+                    fontSize = 11.sp,
+                    color = CrimeGoldLight,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size((4 * dot1Scale).dp.coerceAtLeast(3.dp))
+                            .clip(CircleShape)
+                            .background(CrimeGold)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size((4 * dot2Scale).dp.coerceAtLeast(3.dp))
+                            .clip(CircleShape)
+                            .background(CrimeGold)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size((4 * dot3Scale).dp.coerceAtLeast(3.dp))
+                            .clip(CircleShape)
+                            .background(CrimeGold)
+                    )
+                }
+            }
+        }
     }
 }
 

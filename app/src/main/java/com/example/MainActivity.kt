@@ -251,9 +251,14 @@ fun CriminalRussiaApp(
                     onSendMessage = { viewModel.sendBossChatMessage(it) },
                     onSwitchBoss = { viewModel.switchBossInChat(it) },
                     onPayTribute = { viewModel.payBossTribute() },
+                    onOfferCigarette = { viewModel.offerBossCigarette() },
                     onStartShowdownFromChat = { boss ->
-                        viewModel.closeBossChat()
-                        viewModel.startBossShowdown(boss)
+                        if (uiState.activeBossChat?.isAttacking == true) {
+                            viewModel.triggerBossAmbushShowdown(boss)
+                        } else {
+                            viewModel.closeBossChat()
+                            viewModel.startBossShowdown(boss)
+                        }
                     },
                     onDismiss = { viewModel.closeBossChat() }
                 )
